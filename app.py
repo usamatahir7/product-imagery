@@ -1,4 +1,5 @@
 from pathlib import Path
+import os
 
 from dotenv import load_dotenv
 
@@ -9,6 +10,7 @@ import streamlit as st
 from agents.image_agent import MODEL as IMAGE_MODEL, ImageAgent
 from agents.prompt_agent import MODEL as PROMPT_MODEL, ProductContext, PromptAgent, ReferenceImage
 from data.industry_products import INDUSTRIES, INDUSTRY_PRODUCTS
+from utils.prompt_logger import log_prompt_to_sheet
 
 ROOT = Path(__file__).resolve().parent
 DEFAULT_PROMPT_PATH = ROOT / "assets" / "default_ui" / "default_prompt.txt"
@@ -216,6 +218,18 @@ if submitted:
     try:
         with st.spinner(f"Generating prompt with {PROMPT_MODEL}..."):
             prompt = PromptAgent().generate(context, reference=reference)
+
+        logged = log_prompt_to_sheet(
+            prompt=prompt,
+            industry=industry,
+            product=product_type,
+            brand_styling=brand_styling.strip(),
+            scene=scene.strip(),
+            action="generate_prompt_and_image",
+            has_reference=reference is not None,
+        )
+        if not logged and os.environ.get("DEBUG_SHEET_LOGGING", "").strip().lower() in {"1", "true", "yes"}:
+            st.warning("Prompt logging to Google Sheets failed. Run scripts/test_sheet_logging.py to debug.")
 
         st.session_state.display_prompt = prompt
         st.session_state.editable_prompt = prompt
